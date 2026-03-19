@@ -11,6 +11,7 @@
     <style>
         :root {
             --gold: #D4AF37;
+            --dark-gold: #856404;
             --dark-bg: #050505;
         }
 
@@ -22,7 +23,7 @@
             overflow: hidden;
             touch-action: none;
             /* Added for 3D depth */
-            perspective: 1200px;
+            perspective: 1000px;
         }
 
         .serif { font-family: 'Playfair Display', serif; }
@@ -90,7 +91,7 @@
             box-shadow: 0 12px 40px rgba(0, 0, 0, 0.9);
             border: 2px solid var(--gold);
             background: #111;
-            /* Added for smooth tilting */
+            /* Added for smooth 3D tilting */
             transform-style: preserve-3d;
             transition: transform 0.1s ease-out;
         }
@@ -111,16 +112,6 @@
             align-items: center;
             justify-content: center;
             transition: all 1.5s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        /* The Shimmer Layer */
-        #card-shimmer {
-            position: absolute;
-            inset: -100%;
-            background: linear-gradient(120deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0) 70%);
-            pointer-events: none;
-            z-index: 61;
-            opacity: 0.5;
         }
 
         .foil-melt {
@@ -194,10 +185,9 @@
             <img id="main-photo" src="us.png" alt="Hidden Memory">
             
             <div id="foil-overlay">
-                <div id="card-shimmer"></div>
                 <div class="text-center px-4">
                      <p class="serif italic font-bold text-[#4a4a4a] text-lg">A memory frozen in time...</p>
-                     <p class="mt-2 text-[10px] tracking-[4px] font-bold text-[#5a4a2a] uppercase">Hold to Reveal</p>
+                     <p class="mt-2 text-[10px] tracking-[4px] font-bold text-[#5a4a2a] uppercase">Press & Hold to Reveal</p>
                 </div>
             </div>
         </div>
@@ -206,14 +196,17 @@
     <script>
         let currentIdx = 0;
         let holdTimer;
+        let isRevealed = false;
         const scratchSfx = document.getElementById('scratch-audio');
 
-        // Permission request for iPhone
+        // iOS Motion Permission Logic
         function requestMotionPermission() {
             if (typeof DeviceOrientationEvent.requestPermission === 'function') {
                 DeviceOrientationEvent.requestPermission()
-                    .then(state => {
-                        if (state === 'granted') window.addEventListener('deviceorientation', handleMotion);
+                    .then(permissionState => {
+                        if (permissionState === 'granted') {
+                            window.addEventListener('deviceorientation', handleMotion);
+                        }
                     })
                     .catch(console.error);
             } else {
@@ -222,20 +215,17 @@
             goToPage(1);
         }
 
-        // Apple Wallet Style Motion
-        function handleMotion(e) {
+        // Parallax Movement Logic
+        function handleMotion(event) {
             const card = document.getElementById('card-frame');
-            const shimmer = document.getElementById('card-shimmer');
             if (!card) return;
 
-            const rX = (e.beta - 45) * 0.2; // Vertical tilt
-            const rY = e.gamma * -0.2;       // Horizontal tilt
+            // Beta (tilt front-to-back) and Gamma (tilt left-to-right)
+            // Adjusting beta by 45 assuming a natural holding angle
+            const rotateX = (event.beta - 45) * 0.2; 
+            const rotateY = event.gamma * -0.2;
 
-            card.style.transform = `rotateX(${rX}deg) rotateY(${rY}deg)`;
-            
-            if (shimmer) {
-                shimmer.style.transform = `translate(${e.gamma * 3}px, ${(e.beta - 45) * 3}px)`;
-            }
+            card.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
         }
 
         function goToPage(index) {
@@ -278,7 +268,7 @@
 
             const endHold = () => {
                 clearTimeout(holdTimer);
-                if (window.isRevealed) return;
+                if (isRevealed) return;
                 
                 foil.classList.remove('foil-melt');
                 instruction.style.opacity = "1";
@@ -293,7 +283,7 @@
         }
 
         function completeReveal() {
-            window.isRevealed = true;
+            isRevealed = true;
             const instruction = document.getElementById('hold-instruction');
             if(instruction) instruction.style.display = 'none';
             scratchSfx.pause();
@@ -302,8 +292,18 @@
             const luxuryColors = ['#D4AF37', '#FBF5B7', '#FFFFFF'];
 
             (function frame() {
-                confetti({ particleCount: 5, angle: 60, spread: 70, origin: { x: 0, y: 0.8 }, colors: luxuryColors, zIndex: 999 });
-                confetti({ particleCount: 5, angle: 120, spread: 70, origin: { x: 1, y: 0.8 }, colors: luxuryColors, zIndex: 999 });
+                confetti({
+                    particleCount: 5,
+                    angle: 60, spread: 70,
+                    origin: { x: 0, y: 0.8 },
+                    colors: luxuryColors, zIndex: 999
+                });
+                confetti({
+                    particleCount: 5,
+                    angle: 120, spread: 70,
+                    origin: { x: 1, y: 0.8 },
+                    colors: luxuryColors, zIndex: 999
+                });
                 if (Date.now() < end) requestAnimationFrame(frame);
             }());
         }
