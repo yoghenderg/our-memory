@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>A Special Reveal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --gold: #D4AF37;
+            --dark-bg: #050505;
+        }
+
+        body {
+            background-color: var(--dark-bg);
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        .serif { font-family: 'Playfair Display', serif; }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 24px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+        }
+
+        .gold-gradient {
+            background: linear-gradient(to right, #BF953F, #FCF6BA, #D4AF37, #FBF5B7, #AA771C);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .page {
+            position: absolute;
+            inset: 0;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            text-align: center;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.8s ease, transform 0.8s ease;
+            z-index: 10;
+        }
+
+        .page.active {
+            display: flex;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        #scratch-mask {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0,0,0,0.85);
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 1s ease;
+        }
+
+        #scratch-mask.visible {
+            display: flex;
+            opacity: 1;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #card-frame {
+            position: relative;
+            width: 90%;
+            max-width: 400px;
+            aspect-ratio: 3 / 4;
+            overflow: hidden;
+            border-radius: 16px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.9);
+            border: 2px solid var(--gold);
+        }
+
+        #main-photo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #scratch-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 60;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        .fade-out {
+            opacity: 0 !important;
+            pointer-events: none;
+            transition: opacity 2s ease;
+        }
+
+        .btn-luxury {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--gold);
+            padding: 12px 32px;
+            border-radius: 50px;
+            color: var(--gold);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-luxury:active {
+            transform: scale(0.95);
+            background: rgba(212, 175, 55, 0.1);
+        }
+
+        /* Debug button style */
+        #debug-reveal {
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 999;
+            opacity: 0.2;
+            font-size: 10px;
+            color: white;
+            border: 1px solid white;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <audio id="scratch-audio" loop>
+        <source src="https://assets.mixkit.co/active_storage/sfx/1169/1169-preview.mp3" type="audio/mpeg">
+    </audio>
+
+    <div id="ui-wrapper">
+        <div id="page-0" class="page active">
+            <div class="glass-panel p-10 max-w-xs w-full">
+                <h1 class="serif italic text-3xl mb-10 gold-gradient">A secret, just for you...</h1>
+                <button onclick="goToPage(1)" class="btn-luxury">Start Experience</button>
+            </div>
+        </div>
+
+        <div id="page-1" class="page">
+            <p class="serif text-2xl leading-relaxed max-w-md gold-gradient">Every moment we've shared together...</p>
+            <button onclick="goToPage(2)" class="btn-luxury mt-16">Next</button>
+        </div>
+
+        <div id="page-2" class="page">
+            <p class="serif text-2xl leading-relaxed max-w-md">...has led to this very second.</p>
+            <button onclick="goToPage(3)" class="btn-luxury mt-16">Next</button>
+        </div>
+
+        <div id="page-3" class="page">
+            <p class="serif text-2xl leading-relaxed max-w-md gold-gradient">The world is simply brighter because of you.</p>
+            <button onclick="goToPage(4)" class="btn-luxury mt-16">Next</button>
+        </div>
+
+        <div id="page-4" class="page">
+            <p class="serif text-2xl leading-relaxed max-w-md">Now, I have something special to show you.</p>
+            <button onclick="revealScratchCard()" class="btn-luxury mt-16 font-bold border-2">Let's Reveal</button>
+        </div>
+    </div>
+
+    <div id="scratch-mask">
+        <button id="debug-reveal" onclick="completeReveal()">DEBUG: Force Reveal</button>
+
+        <div id="card-frame">
+            <img id="main-photo" src="https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=2069&auto=format&fit=crop" alt="Hidden Memory">
+            <canvas id="scratch-canvas"></canvas>
+        </div>
+
+        <div id="final-cta" class="fixed bottom-12 left-0 w-full flex justify-center z-[100] opacity-0 transition-opacity duration-1000">
+            <a id="dl-btn" href="#" download="Our_Moment.jpg" class="glass-panel btn-luxury bg-black/60 py-4 px-8">Download This Memory</a>
+        </div>
+    </div>
+
+    <script>
+        let currentIdx = 0;
+        const scratchSfx = document.getElementById('scratch-audio');
+
+        function goToPage(index) {
+            const current = document.getElementById(`page-${currentIdx}`);
+            const next = document.getElementById(`page-${index}`);
+            current.classList.remove('active');
+            setTimeout(() => {
+                next.classList.add('active');
+                currentIdx = index;
+            }, 600);
+        }
+
+        function revealScratchCard() {
+            document.getElementById(`page-4`).classList.remove('active');
+            setTimeout(() => {
+                const mask = document.getElementById('scratch-mask');
+                mask.style.display = 'flex';
+                requestAnimationFrame(() => {
+                    mask.classList.add('visible');
+                    setupCenteredCanvas();
+                });
+            }, 800);
+        }
+
+        function setupCenteredCanvas() {
+            const canvas = document.getElementById('scratch-canvas');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            const frame = document.getElementById('card-frame');
+            
+            canvas.width = frame.offsetWidth;
+            canvas.height = frame.offsetHeight;
+
+            const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            grad.addColorStop(0, '#C0C0C0');
+            grad.addColorStop(0.5, '#E8E8E8');
+            grad.addColorStop(1, '#808080');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.font = "italic 16px Playfair Display";
+            ctx.fillStyle = "rgba(0,0,0,0.3)";
+            ctx.textAlign = "center";
+            ctx.fillText("Rub to reveal the card...", canvas.width/2, canvas.height/2);
+
+            let painting = false;
+
+            function getFramePos(e) {
+                const rect = canvas.getBoundingClientRect();
+                const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+                const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+                return { x, y };
+            }
+
+            function scratch(e) {
+                if (!painting) return;
+                const { x, y } = getFramePos(e);
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.beginPath();
+                ctx.arc(x, y, 45, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            canvas.addEventListener('mousedown', (e) => { painting = true; scratchSfx.play().catch(()=>{}); scratch(e); });
+            canvas.addEventListener('touchstart', (e) => { painting = true; scratchSfx.play().catch(()=>{}); scratch(e); });
+            
+            window.addEventListener('mouseup', () => { painting = false; scratchSfx.pause(); checkReveal(); });
+            window.addEventListener('touchend', () => { painting = false; scratchSfx.pause(); checkReveal(); });
+            
+            canvas.addEventListener('mousemove', scratch);
+            canvas.addEventListener('touchmove', scratch);
+
+            function checkReveal() {
+                try {
+                    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                    let erasedCount = 0;
+                    for (let i = 3; i < pixels.length; i += 4) {
+                        if (pixels[i] === 0) erasedCount++;
+                    }
+                    if ((erasedCount / (pixels.length / 4)) > 0.70) {
+                        completeReveal();
+                    }
+                } catch (e) {
+                    console.error("CORS Block: Use the Debug button at the top to test the reveal!");
+                }
+            }
+        }
+
+        function completeReveal() {
+            const canvas = document.getElementById('scratch-canvas');
+            const debugBtn = document.getElementById('debug-reveal');
+            if(debugBtn) debugBtn.style.display = 'none';
+            
+            canvas.classList.add('fade-out');
+            scratchSfx.pause();
+
+            const end = Date.now() + 4500;
+            const luxuryColors = ['#D4AF37', '#FBF5B7', '#FFFFFF'];
+
+            (function frame() {
+                confetti({
+                    particleCount: 4,
+                    angle: 60, spread: 60,
+                    origin: { x: 0.1, y: 0.8 },
+                    colors: luxuryColors, zIndex: 200
+                });
+                confetti({
+                    particleCount: 4,
+                    angle: 120, spread: 60,
+                    origin: { x: 0.9, y: 0.8 },
+                    colors: luxuryColors, zIndex: 200
+                });
+                if (Date.now() < end) requestAnimationFrame(frame);
+            }());
+
+            setTimeout(() => {
+                document.getElementById('final-cta').classList.remove('opacity-0');
+                document.getElementById('dl-btn').href = document.getElementById('main-photo').src;
+            }, 1500);
+        }
+    </script>
+</body>
+</html>
