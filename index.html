@@ -11,22 +11,36 @@
     <style>
         :root {
             --gold: #D4AF37;
-            --dark-gold: #856404;
             --dark-bg: #050505;
         }
 
+        /* Corrected: Use Flexbox on body to center the entire wrapper */
         body {
             background-color: var(--dark-bg);
             color: #fff;
             font-family: 'Inter', sans-serif;
             margin: 0;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             overflow: hidden;
             touch-action: none;
-            /* Added for 3D depth */
-            perspective: 1000px;
+            perspective: 1200px;
         }
 
         .serif { font-family: 'Playfair Display', serif; }
+
+        /* Added: A fixed-size container to keep all pages in one spot */
+        #ui-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
 
         .glass-panel {
             background: rgba(255, 255, 255, 0.03);
@@ -43,19 +57,19 @@
             -webkit-text-fill-color: transparent;
         }
 
+        /* Fixed: Centering for absolute elements */
         .page {
             position: absolute;
-            inset: 0;
             display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 2rem;
+            width: 90%;
+            max-width: 400px;
             text-align: center;
             opacity: 0;
-            transform: translateY(10px);
+            transform: translateY(20px);
             transition: opacity 0.8s ease, transform 0.8s ease;
-            z-index: 10;
         }
 
         .page.active {
@@ -68,30 +82,29 @@
             display: none;
             position: fixed;
             inset: 0;
-            background-color: rgba(0,0,0,0.85);
+            background-color: rgba(0,0,0,0.9);
             z-index: 50;
             opacity: 0;
             transition: opacity 1s ease;
+            justify-content: center;
+            align-items: center;
         }
 
         #scratch-mask.visible {
             display: flex;
             opacity: 1;
-            justify-content: center;
-            align-items: center;
         }
 
         #card-frame {
             position: relative;
-            width: 85%;
-            max-width: 380px;
+            width: 85vw;
+            max-width: 360px;
             aspect-ratio: 9 / 16; 
             overflow: hidden;
             border-radius: 20px;
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.9);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 1);
             border: 2px solid var(--gold);
             background: #111;
-            /* Added for smooth 3D tilting */
             transform-style: preserve-3d;
             transition: transform 0.1s ease-out;
         }
@@ -124,19 +137,14 @@
         .btn-luxury {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid var(--gold);
-            padding: 12px 32px;
+            padding: 14px 36px;
             border-radius: 50px;
             color: var(--gold);
             text-transform: uppercase;
             letter-spacing: 3px;
-            font-size: 0.75rem;
+            font-size: 0.8rem;
             font-weight: 600;
             transition: all 0.3s ease;
-        }
-
-        .btn-luxury:active {
-            transform: scale(0.95);
-            background: rgba(212, 175, 55, 0.1);
         }
     </style>
 </head>
@@ -148,46 +156,45 @@
 
     <div id="ui-wrapper">
         <div id="page-0" class="page active">
-            <div class="glass-panel p-10 max-w-xs w-full">
+            <div class="glass-panel p-8 w-full">
                 <h1 class="serif italic text-3xl mb-10 gold-gradient">A secret, just for you...</h1>
                 <button onclick="requestMotionPermission()" class="btn-luxury">Start Experience</button>
             </div>
         </div>
 
         <div id="page-1" class="page">
-            <p class="serif text-2xl leading-relaxed max-w-md gold-gradient">Every moment we've shared together...</p>
+            <p class="serif text-2xl leading-relaxed gold-gradient">Every moment we've shared together...</p>
             <button onclick="goToPage(2)" class="btn-luxury mt-16">Next</button>
         </div>
 
         <div id="page-2" class="page">
-            <p class="serif text-2xl leading-relaxed max-w-md">...has led to this very second.</p>
+            <p class="serif text-2xl leading-relaxed">...has led to this very second.</p>
             <button onclick="goToPage(3)" class="btn-luxury mt-16">Next</button>
         </div>
 
         <div id="page-3" class="page">
-            <p class="serif text-2xl leading-relaxed max-w-md gold-gradient">The world is simply brighter because of you.</p>
+            <p class="serif text-2xl leading-relaxed gold-gradient">The world is simply brighter because of you.</p>
             <button onclick="goToPage(4)" class="btn-luxury mt-16">Next</button>
         </div>
 
         <div id="page-4" class="page">
-            <p class="serif text-2xl leading-relaxed max-w-md">Now, I have something special to show you.</p>
+            <p class="serif text-2xl leading-relaxed">Now, I have something special to show you.</p>
             <button onclick="revealScratchCard()" class="btn-luxury mt-16 font-bold border-2">Let's Reveal</button>
         </div>
     </div>
 
     <div id="scratch-mask">
-        <div id="hold-instruction" class="absolute z-[70] text-center pointer-events-none transition-opacity duration-500">
+        <div id="hold-instruction" class="absolute z-[70] top-20 text-center transition-opacity duration-500">
             <p class="serif italic text-lg gold-gradient">Hold to reveal your secret...</p>
-            <div class="mt-4 w-12 h-12 border-2 border-gold/50 rounded-full mx-auto animate-ping"></div>
+            <div class="mt-4 w-10 h-10 border-2 border-gold/40 rounded-full mx-auto animate-ping"></div>
         </div>
 
         <div id="card-frame">
             <img id="main-photo" src="us.png" alt="Hidden Memory">
-            
             <div id="foil-overlay">
-                <div class="text-center px-4">
-                     <p class="serif italic font-bold text-[#4a4a4a] text-lg">A memory frozen in time...</p>
-                     <p class="mt-2 text-[10px] tracking-[4px] font-bold text-[#5a4a2a] uppercase">Press & Hold to Reveal</p>
+                <div class="text-center px-6">
+                     <p class="serif italic font-bold text-[#333] text-lg">A memory frozen in time...</p>
+                     <p class="mt-4 text-[10px] tracking-[4px] font-bold text-[#555] uppercase">Hold to Reveal</p>
                 </div>
             </div>
         </div>
@@ -199,14 +206,11 @@
         let isRevealed = false;
         const scratchSfx = document.getElementById('scratch-audio');
 
-        // iOS Motion Permission Logic
         function requestMotionPermission() {
             if (typeof DeviceOrientationEvent.requestPermission === 'function') {
                 DeviceOrientationEvent.requestPermission()
-                    .then(permissionState => {
-                        if (permissionState === 'granted') {
-                            window.addEventListener('deviceorientation', handleMotion);
-                        }
+                    .then(state => {
+                        if (state === 'granted') window.addEventListener('deviceorientation', handleMotion);
                     })
                     .catch(console.error);
             } else {
@@ -215,17 +219,12 @@
             goToPage(1);
         }
 
-        // Parallax Movement Logic
-        function handleMotion(event) {
+        function handleMotion(e) {
             const card = document.getElementById('card-frame');
             if (!card) return;
-
-            // Beta (tilt front-to-back) and Gamma (tilt left-to-right)
-            // Adjusting beta by 45 assuming a natural holding angle
-            const rotateX = (event.beta - 45) * 0.2; 
-            const rotateY = event.gamma * -0.2;
-
-            card.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+            const rX = (e.beta - 45) * 0.25; 
+            const rY = e.gamma * -0.25;
+            card.style.transform = `rotateX(${rX}deg) rotateY(${rY}deg)`;
         }
 
         function goToPage(index) {
@@ -260,16 +259,12 @@
                 foil.classList.add('foil-melt');
                 instruction.style.opacity = "0";
                 scratchSfx.play().catch(()=>{});
-
-                holdTimer = setTimeout(() => {
-                    completeReveal();
-                }, 1500);
+                holdTimer = setTimeout(() => { completeReveal(); }, 1500);
             };
 
             const endHold = () => {
                 clearTimeout(holdTimer);
                 if (isRevealed) return;
-                
                 foil.classList.remove('foil-melt');
                 instruction.style.opacity = "1";
                 scratchSfx.pause();
@@ -284,26 +279,13 @@
 
         function completeReveal() {
             isRevealed = true;
-            const instruction = document.getElementById('hold-instruction');
-            if(instruction) instruction.style.display = 'none';
+            document.getElementById('hold-instruction').style.display = 'none';
             scratchSfx.pause();
-
-            const end = Date.now() + 4500;
-            const luxuryColors = ['#D4AF37', '#FBF5B7', '#FFFFFF'];
-
+            const end = Date.now() + 4000;
+            const colors = ['#D4AF37', '#FFFFFF', '#AA771C'];
             (function frame() {
-                confetti({
-                    particleCount: 5,
-                    angle: 60, spread: 70,
-                    origin: { x: 0, y: 0.8 },
-                    colors: luxuryColors, zIndex: 999
-                });
-                confetti({
-                    particleCount: 5,
-                    angle: 120, spread: 70,
-                    origin: { x: 1, y: 0.8 },
-                    colors: luxuryColors, zIndex: 999
-                });
+                confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors: colors });
+                confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors: colors });
                 if (Date.now() < end) requestAnimationFrame(frame);
             }());
         }
