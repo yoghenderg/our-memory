@@ -79,35 +79,43 @@
         }
 
         #card-frame {
-            position: relative;
-            width: 90%;
-            max-width: 400px;
-            aspect-ratio: 3 / 4;
-            overflow: hidden;
-            border-radius: 16px;
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.9);
-            border: 2px solid var(--gold);
-        }
+    position: relative;
+    width: 85%; /* Slightly narrower for tall screens */
+    max-width: 380px;
+    /* This matches your 768x1376 ratio better */
+    aspect-ratio: 9 / 16; 
+    overflow: hidden;
+    border-radius: 20px; /* Slightly rounder for the tall look */
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.9);
+    border: 2px solid var(--gold);
+    background: #111; /* Fallback color */
+}
 
-        #main-photo {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
+/* Ensure the photo fills the frame without stretching */
+#main-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; 
+    display: block;
+}
 
-        #scratch-canvas {
+        /* The Gold Foil Overlay */
+        #foil-overlay {
             position: absolute;
-            top: 0;
-            left: 0;
+            inset: 0;
             z-index: 60;
-            cursor: crosshair;
-            touch-action: none;
+            background: linear-gradient(135deg, #C0C0C0, #F0F0F0, #808080);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 1.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .fade-out {
+        .foil-melt {
             opacity: 0 !important;
+            transform: scale(1.1) rotate(2deg);
+            filter: blur(20px);
             pointer-events: none;
-            transition: opacity 2s ease;
         }
 
         .btn-luxury {
@@ -127,26 +135,11 @@
             transform: scale(0.95);
             background: rgba(212, 175, 55, 0.1);
         }
-
-        /* Debug button style */
-        #debug-reveal {
-            position: fixed;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 999;
-            opacity: 0.2;
-            font-size: 10px;
-            color: white;
-            border: 1px solid white;
-            padding: 4px 8px;
-            border-radius: 4px;
-        }
     </style>
 </head>
 <body>
 
-    <audio id="scratch-audio" loop>
+    <audio id="scratch-audio">
         <source src="https://assets.mixkit.co/active_storage/sfx/1169/1169-preview.mp3" type="audio/mpeg">
     </audio>
 
@@ -180,12 +173,21 @@
     </div>
 
     <div id="scratch-mask">
-        <button id="debug-reveal" onclick="completeReveal()">DEBUG: Force Reveal</button>
+        <div id="hold-instruction" class="absolute z-[70] text-center pointer-events-none transition-opacity duration-500">
+            <p class="serif italic text-lg gold-gradient">Hold to reveal your secret...</p>
+            <div class="mt-4 w-12 h-12 border-2 border-gold/50 rounded-full mx-auto animate-ping"></div>
+        </div>
 
         <div id="card-frame">
-            <img id="main-photo" src="us.png" alt="Hidden Memory">
-            <canvas id="scratch-canvas"></canvas>
+    <img id="main-photo" src="us.jpg" alt="Hidden Memory">
+    
+    <div id="foil-overlay" class="absolute inset-0 z-60 bg-gradient-to-br from-gray-400 via-gray-100 to-gray-500 flex items-center justify-center transition-all duration-1000">
+        <div class="text-center">
+             <p class="serif italic text-gray-600 opacity-80 text-sm">A memory frozen in time...</p>
+             <p class="mt-2 text-[10px] tracking-[3px] text-gray-400 uppercase">Hold to Reveal</p>
         </div>
+    </div>
+</div>
 
         <div id="final-cta" class="fixed bottom-12 left-0 w-full flex justify-center z-[100] opacity-0 transition-opacity duration-1000">
             <a id="dl-btn" href="#" download="Our_Moment.jpg" class="glass-panel btn-luxury bg-black/60 py-4 px-8">Download This Memory</a>
@@ -194,6 +196,7 @@
 
     <script>
         let currentIdx = 0;
+        let holdTimer;
         const scratchSfx = document.getElementById('scratch-audio');
 
         function goToPage(index) {
@@ -213,97 +216,68 @@
                 mask.style.display = 'flex';
                 requestAnimationFrame(() => {
                     mask.classList.add('visible');
-                    setupCenteredCanvas();
+                    setupHoldInteraction();
                 });
             }, 800);
         }
 
-        function setupCenteredCanvas() {
-            const canvas = document.getElementById('scratch-canvas');
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        function setupHoldInteraction() {
             const frame = document.getElementById('card-frame');
-            
-            canvas.width = frame.offsetWidth;
-            canvas.height = frame.offsetHeight;
+            const foil = document.getElementById('foil-overlay');
+            const instruction = document.getElementById('hold-instruction');
 
-            const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-            grad.addColorStop(0, '#C0C0C0');
-            grad.addColorStop(0.5, '#E8E8E8');
-            grad.addColorStop(1, '#808080');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            const startHold = (e) => {
+                e.preventDefault();
+                // Visual melting starts
+                foil.classList.add('foil-melt');
+                instruction.style.opacity = "0";
+                scratchSfx.play().catch(()=>{});
 
-            ctx.font = "italic 16px Playfair Display";
-            ctx.fillStyle = "rgba(0,0,0,0.3)";
-            ctx.textAlign = "center";
-            ctx.fillText("Rub to reveal the card...", canvas.width/2, canvas.height/2);
+                // Trigger confetti after 1.5 seconds of holding
+                holdTimer = setTimeout(() => {
+                    completeReveal();
+                }, 1500);
+            };
 
-            let painting = false;
+            const endHold = () => {
+                clearTimeout(holdTimer);
+                // If they let go too early, it snaps back
+                if (!document.getElementById('final-cta').classList.contains('opacity-0')) return;
+                
+                foil.classList.remove('foil-melt');
+                instruction.style.opacity = "1";
+                scratchSfx.pause();
+                scratchSfx.currentTime = 0;
+            };
 
-            function getFramePos(e) {
-                const rect = canvas.getBoundingClientRect();
-                const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-                const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
-                return { x, y };
-            }
-
-            function scratch(e) {
-                if (!painting) return;
-                const { x, y } = getFramePos(e);
-                ctx.globalCompositeOperation = 'destination-out';
-                ctx.beginPath();
-                ctx.arc(x, y, 45, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            canvas.addEventListener('mousedown', (e) => { painting = true; scratchSfx.play().catch(()=>{}); scratch(e); });
-            canvas.addEventListener('touchstart', (e) => { painting = true; scratchSfx.play().catch(()=>{}); scratch(e); });
-            
-            window.addEventListener('mouseup', () => { painting = false; scratchSfx.pause(); checkReveal(); });
-            window.addEventListener('touchend', () => { painting = false; scratchSfx.pause(); checkReveal(); });
-            
-            canvas.addEventListener('mousemove', scratch);
-            canvas.addEventListener('touchmove', scratch);
-
-            function checkReveal() {
-                try {
-                    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-                    let erasedCount = 0;
-                    for (let i = 3; i < pixels.length; i += 4) {
-                        if (pixels[i] === 0) erasedCount++;
-                    }
-                    if ((erasedCount / (pixels.length / 4)) > 0.70) {
-                        completeReveal();
-                    }
-                } catch (e) {
-                    console.error("CORS Block: Use the Debug button at the top to test the reveal!");
-                }
-            }
+            frame.addEventListener('mousedown', startHold);
+            frame.addEventListener('touchstart', startHold);
+            window.addEventListener('mouseup', endHold);
+            window.addEventListener('touchend', endHold);
         }
 
         function completeReveal() {
-            const canvas = document.getElementById('scratch-canvas');
-            const debugBtn = document.getElementById('debug-reveal');
-            if(debugBtn) debugBtn.style.display = 'none';
+            const instruction = document.getElementById('hold-instruction');
+            if(instruction) instruction.style.display = 'none';
             
-            canvas.classList.add('fade-out');
             scratchSfx.pause();
 
+            // Luxury Gold Fireworks
             const end = Date.now() + 4500;
             const luxuryColors = ['#D4AF37', '#FBF5B7', '#FFFFFF'];
 
             (function frame() {
                 confetti({
-                    particleCount: 4,
-                    angle: 60, spread: 60,
-                    origin: { x: 0.1, y: 0.8 },
-                    colors: luxuryColors, zIndex: 200
+                    particleCount: 5,
+                    angle: 60, spread: 70,
+                    origin: { x: 0, y: 0.8 },
+                    colors: luxuryColors, zIndex: 999
                 });
                 confetti({
-                    particleCount: 4,
-                    angle: 120, spread: 60,
-                    origin: { x: 0.9, y: 0.8 },
-                    colors: luxuryColors, zIndex: 200
+                    particleCount: 5,
+                    angle: 120, spread: 70,
+                    origin: { x: 1, y: 0.8 },
+                    colors: luxuryColors, zIndex: 999
                 });
                 if (Date.now() < end) requestAnimationFrame(frame);
             }());
@@ -311,7 +285,7 @@
             setTimeout(() => {
                 document.getElementById('final-cta').classList.remove('opacity-0');
                 document.getElementById('dl-btn').href = document.getElementById('main-photo').src;
-            }, 1500);
+            }, 800);
         }
     </script>
 </body>
