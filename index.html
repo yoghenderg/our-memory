@@ -11,7 +11,6 @@
     <style>
         :root {
             --gold: #D4AF37;
-            --dark-gold: #856404; /* Darker gold for high contrast on silver */
             --dark-bg: #050505;
         }
 
@@ -22,6 +21,7 @@
             margin: 0;
             overflow: hidden;
             touch-action: none;
+            perspective: 1000px; /* Essential for 3D tilt */
         }
 
         .serif { font-family: 'Playfair Display', serif; }
@@ -79,16 +79,25 @@
             align-items: center;
         }
 
-        #card-frame {
-            position: relative;
+        /* Apple-style Card Container */
+        #card-container {
+            perspective: 1000px;
             width: 85%;
             max-width: 380px;
+            z-index: 60;
+        }
+
+        #card-frame {
+            position: relative;
+            width: 100%;
             aspect-ratio: 9 / 16; 
             overflow: hidden;
             border-radius: 20px;
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.9);
-            border: 2px solid var(--gold);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
+            border: 1.5px solid var(--gold);
             background: #111;
+            transform-style: preserve-3d;
+            transition: transform 0.1s ease-out; /* Smooth tilt */
         }
 
         #main-photo {
@@ -101,12 +110,29 @@
         #foil-overlay {
             position: absolute;
             inset: 0;
-            z-index: 60;
+            z-index: 65;
             background: linear-gradient(135deg, #A0A0A0, #F8F8F8, #707070);
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: opacity 1.5s cubic-bezier(0.4, 0, 0.2, 1), transform 1.5s ease, filter 1.5s ease;
+        }
+
+        /* Shimmer/Glint effect layer */
+        #card-shimmer {
+            position: absolute;
+            inset: -100%;
+            z-index: 66;
+            background: linear-gradient(
+                120deg,
+                rgba(255,255,255,0) 30%,
+                rgba(255,255,255,0.4) 45%,
+                rgba(255,255,255,0.8) 50%,
+                rgba(255,255,255,0.4) 55%,
+                rgba(255,255,255,0) 70%
+            );
+            pointer-events: none;
+            opacity: 0.4;
         }
 
         .foil-melt {
@@ -128,33 +154,6 @@
             font-weight: 600;
             transition: all 0.3s ease;
         }
-
-        .btn-luxury:active {
-            transform: scale(0.95);
-            background: rgba(212, 175, 55, 0.1);
-        }
-
-        /* Minimal Floating Download Icon */
-        #final-cta {
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            z-index: 100;
-        }
-
-        .download-btn {
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid var(--gold);
-            color: var(--gold);
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
-        }
     </style>
 </head>
 <body>
@@ -167,7 +166,7 @@
         <div id="page-0" class="page active">
             <div class="glass-panel p-10 max-w-xs w-full">
                 <h1 class="serif italic text-3xl mb-10 gold-gradient">A secret, just for you...</h1>
-                <button onclick="goToPage(1)" class="btn-luxury">Start Experience</button>
+                <button onclick="requestMotionPermission()" class="btn-luxury">Start Experience</button>
             </div>
         </div>
 
@@ -198,20 +197,17 @@
             <div class="mt-4 w-12 h-12 border-2 border-gold/50 rounded-full mx-auto animate-ping"></div>
         </div>
 
-        <div id="card-frame">
-            <img id="main-photo" src="us.png" alt="Hidden Memory">
-            
-            <div id="foil-overlay">
-                <div class="text-center px-4">
-                     <p class="serif italic font-bold text-[#4a4a4a] text-lg">A memory frozen in time...</p>
-                     <p class="mt-2 text-[10px] tracking-[4px] font-bold text-[#5a4a2a] uppercase">Press & Hold to Reveal</p>
+        <div id="card-container">
+            <div id="card-frame">
+                <img id="main-photo" src="us.png" alt="Hidden Memory">
+                
+                <div id="foil-overlay">
+                    <div id="card-shimmer"></div>
+                    <div class="text-center px-4 relative z-10">
+                         <p class="serif italic font-bold text-[#4a4a4a] text-lg">A memory frozen in time...</p>
+                         <p class="mt-2 text-[10px] tracking-[4px] font-bold text-[#5a4a2a] uppercase">Press & Hold</p>
+                    </div>
                 </div>
-            </div>
-
-            <div id="final-cta" class="opacity-0 transition-opacity duration-1000">
-                <a id="dl-btn" href="#" download="Our_Moment.png" class="download-btn">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                </a>
             </div>
         </div>
     </div>
@@ -220,6 +216,46 @@
         let currentIdx = 0;
         let holdTimer;
         const scratchSfx = document.getElementById('scratch-audio');
+
+        // iOS Motion Permission Logic
+        function requestMotionPermission() {
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') {
+                            window.addEventListener('deviceorientation', handleMotion);
+                        }
+                    })
+                    .catch(console.error);
+            } else {
+                window.addEventListener('deviceorientation', handleMotion);
+            }
+            goToPage(1);
+        }
+
+        function handleMotion(event) {
+            const card = document.getElementById('card-frame');
+            const shimmer = document.getElementById('card-shimmer');
+            if (!card) return;
+
+            // Beta is tilt front-to-back (-180 to 180)
+            // Gamma is tilt left-to-right (-90 to 90)
+            let x = event.beta; 
+            let y = event.gamma;
+
+            // Limit the rotation for subtleness
+            const rotateX = (x - 45) * 0.2; // Subtracting 45 assumes natural holding angle
+            const rotateY = y * -0.2;
+
+            card.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+
+            // Move shimmer in opposite direction
+            if (shimmer) {
+                const moveX = y * 2;
+                const moveY = (x - 45) * 2;
+                shimmer.style.transform = `translate(${moveX}px, ${moveY}px)`;
+            }
+        }
 
         function goToPage(index) {
             const current = document.getElementById(`page-${currentIdx}`);
@@ -261,7 +297,7 @@
 
             const endHold = () => {
                 clearTimeout(holdTimer);
-                if (!document.getElementById('final-cta').classList.contains('opacity-0')) return;
+                if (foil.classList.contains('foil-melt') && window.confettiTriggered) return;
                 
                 foil.classList.remove('foil-melt');
                 instruction.style.opacity = "1";
@@ -276,6 +312,7 @@
         }
 
         function completeReveal() {
+            window.confettiTriggered = true;
             const instruction = document.getElementById('hold-instruction');
             if(instruction) instruction.style.display = 'none';
             scratchSfx.pause();
@@ -285,24 +322,15 @@
 
             (function frame() {
                 confetti({
-                    particleCount: 5,
-                    angle: 60, spread: 70,
-                    origin: { x: 0, y: 0.8 },
-                    colors: luxuryColors, zIndex: 999
+                    particleCount: 5, angle: 60, spread: 70,
+                    origin: { x: 0, y: 0.8 }, colors: luxuryColors, zIndex: 999
                 });
                 confetti({
-                    particleCount: 5,
-                    angle: 120, spread: 70,
-                    origin: { x: 1, y: 0.8 },
-                    colors: luxuryColors, zIndex: 999
+                    particleCount: 5, angle: 120, spread: 70,
+                    origin: { x: 1, y: 0.8 }, colors: luxuryColors, zIndex: 999
                 });
                 if (Date.now() < end) requestAnimationFrame(frame);
             }());
-
-            setTimeout(() => {
-                document.getElementById('final-cta').classList.remove('opacity-0');
-                document.getElementById('dl-btn').href = document.getElementById('main-photo').src;
-            }, 800);
         }
     </script>
 </body>
